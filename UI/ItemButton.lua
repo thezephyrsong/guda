@@ -2524,10 +2524,18 @@ function Guda_ItemButton_OnEnter(self)
 			GameTooltip:SetHyperlink(self.itemData.link)
 		end
 	elseif self.bagID == -2 then
-		-- Keyring: SetBagItem might be unreliable for -2 in some 1.12.1 environments, fallback to hyperlink if needed
+		-- Keyring (bag -2): in 1.12 the native SetBagItem builds the keyring tooltip
+		-- by internally calling SetHyperlink with the FULL colored link
+		-- (|cff..|Hitem:..|h[Name]|h|r). When other addons (AtlasLoot, WoWTranslate)
+		-- have re-hooked SetHyperlink in an order that bypasses Guda's stripping, that
+		-- full link reaches a hook whose captured original is the raw Blizzard
+		-- SetHyperlink — which only accepts the BARE "item:ID:0:0:0" form and otherwise
+		-- throws "unknown link type". We avoid that internal path entirely by calling
+		-- SetHyperlink ourselves with the bare form extracted from the container link.
 		local link = GetContainerItemLink(self.bagID, self.slotID)
 		if link then
-			GameTooltip:SetHyperlink(link)
+			local _, _, bare = string.find(link, "|H(item:[^|]+)|h")
+			GameTooltip:SetHyperlink(bare or link)
 		else
 			GameTooltip:SetBagItem(self.bagID, self.slotID)
 		end
