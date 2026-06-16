@@ -49,7 +49,7 @@ function Guda_SettingsPopup_OnLoad(self)
     -- Localize the XML-defined tab button labels at runtime
     local function localizeTabBtn(btnName, key)
         local fs = getglobal(btnName .. "_Text")
-        if fs then fs:SetText(Guda_L[key]) end
+        if fs then fs:SetText(Guda_L[key] or key) end
     end
     localizeTabBtn("Guda_SettingsPopup_GeneralTabButton",    "General")
     localizeTabBtn("Guda_SettingsPopup_LayoutTabButton",     "Layout")
@@ -57,10 +57,15 @@ function Guda_SettingsPopup_OnLoad(self)
     localizeTabBtn("Guda_SettingsPopup_BarTabButton",        "Bar")
     localizeTabBtn("Guda_SettingsPopup_CategoriesTabButton", "Categories")
     localizeTabBtn("Guda_SettingsPopup_GuideTabButton",      "Guide")
+    localizeTabBtn("Guda_SettingsPopup_CharactersTabButton",  "Characters")
 
     -- Localize Categories tab header (set in XML)
     local catHeader = getglobal("Guda_SettingsPopup_CategoriesTab_Header")
     if catHeader then catHeader:SetText(Guda_L["Manage item categories and their display order:"]) end
+
+    -- Localize Characters tab header
+    local charHeader = getglobal("Guda_SettingsPopup_CharactersTab_Header")
+    if charHeader then charHeader:SetText(Guda_L["Manage tracked characters (hide from totals or delete entirely):"] or "Manage tracked characters (hide from totals or delete entirely):") end
 
     -- Set How to Use text (localized)
     local instructions = getglobal("Guda_SettingsPopup_GuideTab_Instructions")
@@ -108,6 +113,7 @@ function Guda_SettingsPopup_SelectTab(tabName)
         bar = getglobal("Guda_SettingsPopup_BarTab"),
         categories = getglobal("Guda_SettingsPopup_CategoriesTab"),
         guide = getglobal("Guda_SettingsPopup_GuideTab"),
+        characters = getglobal("Guda_SettingsPopup_CharactersTab"),
     }
 
     local bgs = {
@@ -117,6 +123,7 @@ function Guda_SettingsPopup_SelectTab(tabName)
         bar = getglobal("Guda_SettingsPopup_BarTabButton_Bg"),
         categories = getglobal("Guda_SettingsPopup_CategoriesTabButton_Bg"),
         guide = getglobal("Guda_SettingsPopup_GuideTabButton_Bg"),
+        characters = getglobal("Guda_SettingsPopup_CharactersTabButton_Bg"),
     }
 
     -- Hide all tabs and reset backgrounds
@@ -131,9 +138,11 @@ function Guda_SettingsPopup_SelectTab(tabName)
     if tabs[tabName] then tabs[tabName]:Show() end
     if bgs[tabName] then bgs[tabName]:SetTexture(1, 1, 1, 0.3) end
 
-    -- Special handling for categories tab
+    -- Tab visual special update handlers
     if tabName == "categories" then
         Guda_SettingsPopup_CategoriesTab_Update()
+    elseif tabName == "characters" then
+        Guda_SettingsPopup_CharactersTab_Update()
     end
 end
 
@@ -960,9 +969,7 @@ function Guda_SettingsPopup_ShowSearchBarCheckbox_OnLoad(self)
     -- Tooltip
     self.tooltipText = L_SHOW_SEARCH_BAR_TT
 
-    -- The parent checkbox reads "is search bar available at all?" — i.e.
-    -- modes "shown" and "toggle" both leave it checked; only "hidden"
-    -- unchecks it.
+    -- Modes "shown" and "toggle" both leave it checked; only "hidden" unchecks it.
     local mode = "shown"
     if Guda and Guda.Modules and Guda.Modules.DB then
         mode = Guda.Modules.DB:GetSetting("searchBarMode")
@@ -980,9 +987,6 @@ function Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(self)
     local isChecked = self:GetChecked() == 1
 
     -- Save setting — sync both the legacy boolean and the new three-state.
-    -- If the user had toggle mode enabled, unchecking flips to hidden;
-    -- re-checking returns to "shown" (toggle must be re-enabled via its
-    -- own control).
     if Guda and Guda.Modules and Guda.Modules.DB then
         Guda.Modules.DB:SetSetting("showSearchBar", isChecked)
         Guda.Modules.DB:SetSetting("searchBarMode", isChecked and "shown" or "hidden")
@@ -998,7 +1002,6 @@ function Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(self)
     -- Update search bar visibility in bag frame
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame and bagFrame:IsShown() then
-        -- Use the UpdateSearchBarVisibility function which handles anchoring
         if Guda.Modules.BagFrame.UpdateSearchBarVisibility then
             Guda.Modules.BagFrame:UpdateSearchBarVisibility()
         end
@@ -1008,7 +1011,6 @@ function Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(self)
     -- Update search bar visibility in bank frame
     local bankFrame = getglobal("Guda_BankFrame")
     if bankFrame and bankFrame:IsShown() then
-        -- Use the UpdateSearchBarVisibility function which handles anchoring
         if Guda.Modules.BankFrame.UpdateSearchBarVisibility then
             Guda.Modules.BankFrame:UpdateSearchBarVisibility()
         end
@@ -1016,10 +1018,7 @@ function Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(self)
     end
 end
 
--- Search Bar Toggle Mode Checkbox: when checked, switches searchBarMode to
--- "toggle" (bar hidden by default, icon button reveals it). Only meaningful
--- while the parent "Show Search Bar" checkbox is checked — unchecking the
--- parent forces this off.
+-- Search Bar Toggle Mode Checkbox
 function Guda_SettingsPopup_SearchBarToggleCheckbox_OnLoad(self)
     local text = getglobal(self:GetName().."Text")
     if text then
@@ -1048,7 +1047,6 @@ function Guda_SettingsPopup_SearchBarToggleCheckbox_OnClick(self)
         local parent = getglobal("Guda_SettingsPopup_ShowSearchBarCheckbox")
         if parent then parent:SetChecked(1) end
     else
-        -- Fall back to the parent checkbox's state
         local parent = getglobal("Guda_SettingsPopup_ShowSearchBarCheckbox")
         local parentChecked = parent and parent:GetChecked() == 1
         Guda.Modules.DB:SetSetting("searchBarMode", parentChecked and "shown" or "hidden")
@@ -1123,7 +1121,7 @@ function Guda_SettingsPopup_HoverBaglineCheckbox_OnLoad(self)
     if Guda and Guda.Modules and Guda.Modules.DB then
         local val = Guda.Modules.DB:GetSetting("hideBagline")
         if val == nil then
-            hideBagline = true  -- default: hidden (Show All Bags unchecked)
+            hideBagline = true
         else
             hideBagline = val
         end
@@ -1508,10 +1506,6 @@ function Guda_SettingsPopup_AutoLootCheckbox_OnLoad(self)
         if font then text:SetFont(font, 13, flags) end
     end
 
-    -- TurtleWoW requires SuperWoW for any addon-driven autoloot to work
-    -- (both SetAutoloot and LootSlot are gated). If it's not present, soft-
-    -- disable: keep mouse enabled so the tooltip still shows on hover, but
-    -- mark the button so OnClick is a no-op and dim the label.
     local hasSuperWoW = SetAutoloot ~= nil
     self._gudaSoftDisabled = not hasSuperWoW
     if hasSuperWoW then
@@ -1531,7 +1525,6 @@ end
 
 -- Auto Loot Checkbox OnClick
 function Guda_SettingsPopup_AutoLootCheckbox_OnClick(self)
-    -- Soft-disable: revert the click and bail when SuperWoW is missing.
     if self._gudaSoftDisabled then
         local enabled = Guda.Modules.DB:GetSetting("autoLoot") and true or false
         self:SetChecked(enabled and 1 or 0)
@@ -1541,8 +1534,6 @@ function Guda_SettingsPopup_AutoLootCheckbox_OnClick(self)
     if Guda and Guda.Modules and Guda.Modules.DB then
         Guda.Modules.DB:SetSetting("autoLoot", isChecked)
     end
-    -- Apply immediately to the client (SuperWoW's SetAutoloot or vanilla
-    -- SetAutoLootDefault) so the toggle takes effect on the next loot.
     if Guda.Modules.AutoLoot and Guda.Modules.AutoLoot.Apply then
         Guda.Modules.AutoLoot:Apply()
     end
@@ -1572,7 +1563,6 @@ function Guda_SettingsPopup_AutoOpenClamsCheckbox_OnClick(self)
     if Guda and Guda.Modules and Guda.Modules.DB then
         Guda.Modules.DB:SetSetting("autoOpenClams", isChecked)
     end
-    -- If enabling, kick off an immediate run for any clams already in bags.
     if isChecked and Guda.Modules.ClamOpener then
         Guda.Modules.ClamOpener:Open(true)
     end
@@ -1705,12 +1695,10 @@ function Guda_SettingsPopup_WhiteItemsJunkCheckbox_OnClick(self)
         Guda.Modules.DB:SetSetting("whiteItemsJunk", isChecked)
     end
 
-    -- Clear item detection cache so junk status is re-evaluated
     if Guda.Modules.ItemDetection and Guda.Modules.ItemDetection.ClearCache then
         Guda.Modules.ItemDetection:ClearCache()
     end
 
-    -- Update bag and bank frames
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame and bagFrame:IsShown() then
         Guda.Modules.BagFrame:Update()
@@ -1722,7 +1710,7 @@ function Guda_SettingsPopup_WhiteItemsJunkCheckbox_OnClick(self)
     end
 end
 
--- Theme Dropdown (Blizzard UIDropDownMenu)
+-- Theme Dropdown Options
 local themeOptions = {
     { text = "Guda", value = "guda" },
     { text = "Blizzard", value = "blizzard" },
@@ -1748,7 +1736,6 @@ function Guda_SettingsPopup_UsePfUITransparencyCheckbox_OnLoad(self)
     end
     self:SetChecked(val and 1 or 0)
 
-    -- Only show when pfUI theme is active
     local theme = "guda"
     if Guda and Guda.Modules and Guda.Modules.DB then
         theme = Guda.Modules.DB:GetSetting("theme") or "guda"
@@ -1791,7 +1778,6 @@ function Guda_SettingsPopup_ThemeDropdown_OnLoad(self)
     UIDropDownMenu_SetSelectedValue(self, currentTheme)
     UIDropDownMenu_SetText(names[currentTheme] or currentTheme, self)
 
-    -- Add label above dropdown
     local label = self:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("BOTTOMLEFT", self, "TOPLEFT", 20, 2)
     label:SetText(Guda_L["Theme"])
@@ -1803,9 +1789,7 @@ function Guda_SettingsPopup_ApplyTheme(themeId)
     local DB = Guda.Modules.DB
     local oldTheme = DB:GetSetting("theme") or "guda"
 
-    -- Save current hideBorders/bgTransparency when leaving pfUI theme
     if oldTheme == "pfui" and themeId ~= "pfui" then
-        -- Restore previously saved values (from before pfUI was applied)
         local prevHide = DB:GetSetting("_prePfui_hideBorders")
         local prevTransp = DB:GetSetting("_prePfui_bgTransparency")
         if prevHide ~= nil then
@@ -1820,13 +1804,11 @@ function Guda_SettingsPopup_ApplyTheme(themeId)
         end
     end
 
-    -- Save current values before switching to pfUI, then apply pfUI defaults
     if themeId == "pfui" and oldTheme ~= "pfui" then
         DB:SetSetting("_prePfui_hideBorders", DB:GetSetting("hideBorders"))
         DB:SetSetting("_prePfui_bgTransparency", DB:GetSetting("bgTransparency"))
         DB:SetSetting("hideBorders", true)
         DB:SetSetting("bgTransparency", Guda.Constants.PFUI_DEFAULT_BG_TRANSPARENCY)
-        -- Default to using pfUI transparency
         if DB:GetSetting("usePfUITransparency") == nil then
             DB:SetSetting("usePfUITransparency", true)
         end
@@ -1834,12 +1816,10 @@ function Guda_SettingsPopup_ApplyTheme(themeId)
 
     DB:SetSetting("theme", themeId)
 
-    -- Clear theme cache
     if Guda.Modules.Theme then
         Guda.Modules.Theme:ClearCache()
     end
 
-    -- Update dropdown text
     local dropdown = getglobal("Guda_SettingsPopup_ThemeDropdown")
     if dropdown then
         local names = { guda = "Guda", blizzard = "Blizzard", pfui = "pfUI" }
@@ -1847,12 +1827,10 @@ function Guda_SettingsPopup_ApplyTheme(themeId)
         UIDropDownMenu_SetText(names[themeId] or themeId, dropdown)
     end
 
-    -- Apply theme to all frames (also updates slot background alphas)
     if Guda.Modules.Theme then
         Guda.Modules.Theme:ApplyToAllFrames()
     end
 
-    -- Refresh settings UI controls to reflect changed hideBorders/bgTransparency
     local hideBordersCheckbox = getglobal("Guda_SettingsPopup_HideBordersCheckbox")
     if hideBordersCheckbox then
         local hb = DB:GetSetting("hideBorders")
@@ -1863,7 +1841,6 @@ function Guda_SettingsPopup_ApplyTheme(themeId)
         bgTransparencySlider:SetValue(DB:GetSetting("bgTransparency") or 0.15)
     end
 
-    -- Show/hide pfUI transparency checkbox based on theme
     local pfuiTranspCB = getglobal("Guda_SettingsPopup_UsePfUITransparencyCheckbox")
     if pfuiTranspCB then
         if themeId == "pfui" then
@@ -1968,7 +1945,6 @@ function Guda_SettingsPopup_ReverseStackSortCheckbox_OnLoad(self)
         end
     end
 
-    -- Tooltip
     self.tooltipText = Guda_L["When enabled, smaller stacks of the same item will be sorted before larger stacks (e.g., stack of 16 before stack of 20)."]
 
     local reverseStackSort = false
@@ -1985,26 +1961,19 @@ end
 -- Reverse Stack Sort Checkbox OnClick
 function Guda_SettingsPopup_ReverseStackSortCheckbox_OnClick(self)
     local isChecked = self:GetChecked() == 1
-
-    -- Save setting
     if Guda and Guda.Modules and Guda.Modules.DB then
         Guda.Modules.DB:SetSetting("reverseStackSort", isChecked)
     end
-
-    -- Note: Sorting will use the new setting on next sort operation
-    -- No immediate UI update needed
 end
 
 -------------------------------------------
 -- Categories Tab Functions
 -------------------------------------------
 
--- Number of visible rows in the category list
 local CATEGORY_ROW_HEIGHT = 22
 local CATEGORY_VISIBLE_ROWS = 14
 local categoryRowFrames = {}
 
--- Create or get a category row frame
 local function GetCategoryRowFrame(index)
     if categoryRowFrames[index] then
         return categoryRowFrames[index]
@@ -2019,13 +1988,11 @@ local function GetCategoryRowFrame(index)
     row:SetWidth(420)
     row:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -((index - 1) * CATEGORY_ROW_HEIGHT))
 
-    -- Background highlight
     local bg = row:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(row)
     bg:SetTexture(1, 1, 1, 0)
     row.bg = bg
 
-    -- Enable checkbox
     local checkbox = CreateFrame("CheckButton", rowName .. "_Checkbox", row, "UICheckButtonTemplate")
     checkbox:SetWidth(20)
     checkbox:SetHeight(20)
@@ -2040,14 +2007,12 @@ local function GetCategoryRowFrame(index)
     end)
     row.checkbox = checkbox
 
-    -- Category name
     local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     nameText:SetPoint("LEFT", checkbox, "RIGHT", 5, 0)
     nameText:SetWidth(160)
     nameText:SetJustifyH("LEFT")
     row.nameText = nameText
 
-    -- Edit button
     local editBtn = CreateFrame("Button", rowName .. "_EditBtn", row, "UIPanelButtonTemplate")
     editBtn:SetWidth(40)
     editBtn:SetHeight(18)
@@ -2061,7 +2026,6 @@ local function GetCategoryRowFrame(index)
     end)
     row.editBtn = editBtn
 
-    -- Move Up button
     local upBtn = CreateFrame("Button", rowName .. "_UpBtn", row)
     upBtn:SetWidth(20)
     upBtn:SetHeight(20)
@@ -2079,7 +2043,6 @@ local function GetCategoryRowFrame(index)
     end)
     row.upBtn = upBtn
 
-    -- Move Down button
     local downBtn = CreateFrame("Button", rowName .. "_DownBtn", row)
     downBtn:SetWidth(20)
     downBtn:SetHeight(20)
@@ -2097,7 +2060,6 @@ local function GetCategoryRowFrame(index)
     end)
     row.downBtn = downBtn
 
-    -- Delete button (only for custom categories)
     local deleteBtn = CreateFrame("Button", rowName .. "_DeleteBtn", row, "UIPanelCloseButton")
     deleteBtn:SetWidth(20)
     deleteBtn:SetHeight(20)
@@ -2115,14 +2077,12 @@ local function GetCategoryRowFrame(index)
     end)
     row.deleteBtn = deleteBtn
 
-    -- Built-in indicator
     local builtInText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     builtInText:SetPoint("LEFT", deleteBtn, "RIGHT", 5, 0)
     builtInText:SetText(Guda_L["(Built-in)"])
     builtInText:SetTextColor(0.5, 0.5, 0.5)
     row.builtInText = builtInText
 
-    -- Merge checkbox (shown on group header rows)
     local mergeCheckbox = CreateFrame("CheckButton", rowName .. "_MergeCheckbox", row, "UICheckButtonTemplate")
     mergeCheckbox:SetWidth(20)
     mergeCheckbox:SetHeight(20)
@@ -2147,32 +2107,25 @@ local function GetCategoryRowFrame(index)
     row.mergeCheckbox = mergeCheckbox
     row.mergeLabel = mergeLabel
 
-    -- Hover highlight
     row:EnableMouse(true)
-    row:SetScript("OnEnter", function()
-        this.bg:SetTexture(1, 1, 1, 0.1)
-    end)
-    row:SetScript("OnLeave", function()
-        this.bg:SetTexture(1, 1, 1, 0)
-    end)
+    row:SetScript("OnEnter", function() this.bg:SetTexture(1, 1, 1, 0.1) end)
+    row:SetScript("OnLeave", function() this.bg:SetTexture(1, 1, 1, 0) end)
 
     categoryRowFrames[index] = row
     return row
 end
 
--- Build a flat display list with group headers inserted
 local function BuildCategoryDisplayList()
     if not Guda.Modules.CategoryManager then return {}, 0 end
 
     local categoryOrder = Guda.Modules.CategoryManager:GetCategoryOrder()
-    local displayList = {}  -- entries: { type = "header"|"category", groupName, categoryId, categoryDef }
+    local displayList = {}
     local lastGroup = nil
 
     for _, catId in ipairs(categoryOrder) do
         local catDef = Guda.Modules.CategoryManager:GetCategory(catId)
         if catDef then
             local group = catDef.group or "Main"
-            -- Insert group header if group changed
             if group ~= lastGroup then
                 table.insert(displayList, { type = "header", groupName = group })
                 lastGroup = group
@@ -2184,7 +2137,6 @@ local function BuildCategoryDisplayList()
     return displayList, table.getn(displayList)
 end
 
--- Update the category list display
 function Guda_SettingsPopup_CategoriesTab_Update()
     if not Guda.Modules.CategoryManager then return end
 
@@ -2193,9 +2145,7 @@ function Guda_SettingsPopup_CategoriesTab_Update()
 
     local displayList, totalEntries = BuildCategoryDisplayList()
 
-    -- Update scroll frame
     FauxScrollFrame_Update(scrollFrame, totalEntries, CATEGORY_VISIBLE_ROWS, CATEGORY_ROW_HEIGHT)
-
     local offset = FauxScrollFrame_GetOffset(scrollFrame)
 
     for i = 1, CATEGORY_VISIBLE_ROWS do
@@ -2206,7 +2156,6 @@ function Guda_SettingsPopup_CategoriesTab_Update()
                 local entry = displayList[dataIndex]
 
                 if entry.type == "header" then
-                    -- Show as group header row
                     row.categoryId = nil
                     row.groupName = entry.groupName
                     row.nameText:SetText("|cffffd100-- " .. entry.groupName .. " --|r")
@@ -2218,12 +2167,10 @@ function Guda_SettingsPopup_CategoriesTab_Update()
                     row.deleteBtn:Hide()
                     row.builtInText:Hide()
 
-                    -- Show merge checkbox for group headers
                     local mergedGroups = Guda.Modules.DB:GetSetting("mergedGroups") or {}
                     row.mergeCheckbox:SetChecked(mergedGroups[entry.groupName] and 1 or 0)
                     row.mergeCheckbox:Show()
                     row.mergeLabel:Show()
-
                     row:Show()
                 elseif entry.type == "category" then
                     local categoryId = entry.categoryId
@@ -2237,7 +2184,6 @@ function Guda_SettingsPopup_CategoriesTab_Update()
                     row.mergeCheckbox:Hide()
                     row.mergeLabel:Hide()
 
-                    -- Show/hide delete button based on whether it's built-in
                     if categoryDef.isBuiltIn then
                         row.deleteBtn:Hide()
                         row.builtInText:Show()
@@ -2246,7 +2192,6 @@ function Guda_SettingsPopup_CategoriesTab_Update()
                         row.builtInText:Hide()
                     end
 
-                    -- Hide all controls for hideControls categories (only checkbox visible)
                     if categoryDef.hideControls then
                         row.editBtn:Hide()
                         row.upBtn:Hide()
@@ -2258,7 +2203,6 @@ function Guda_SettingsPopup_CategoriesTab_Update()
                         row.upBtn:Show()
                         row.downBtn:Show()
 
-                        -- Enable/disable move buttons based on group-aware boundaries
                         if Guda.Modules.CategoryManager:CanMoveUp(categoryId) then
                             row.upBtn:Enable()
                         else
@@ -2272,13 +2216,11 @@ function Guda_SettingsPopup_CategoriesTab_Update()
                         end
                     end
 
-                    -- Set text color based on enabled state
                     if categoryDef.enabled then
                         row.nameText:SetTextColor(1, 1, 1)
                     else
                         row.nameText:SetTextColor(0.5, 0.5, 0.5)
                     end
-
                     row:Show()
                 else
                     row:Hide()
@@ -2289,23 +2231,15 @@ function Guda_SettingsPopup_CategoriesTab_Update()
         end
     end
 
-    -- Set button texts
     local addBtn = getglobal("Guda_SettingsPopup_AddCategoryButton")
-    if addBtn then
-        addBtn:SetText(Guda_L["+ Add Category"])
-    end
+    if addBtn then addBtn:SetText(Guda_L["+ Add Category"]) end
 
     local resetBtn = getglobal("Guda_SettingsPopup_ResetCategoriesButton")
-    if resetBtn then
-        resetBtn:SetText(Guda_L["Reset Defaults"])
-    end
+    if resetBtn then resetBtn:SetText(Guda_L["Reset Defaults"]) end
 end
 
--- Add new custom category
 function Guda_SettingsPopup_AddCategory_OnClick()
     if not Guda.Modules.CategoryManager then return end
-
-    -- Create new category definition
     local newDef = {
         name = "Custom Category",
         icon = "Interface\\Icons\\INV_Misc_QuestionMark",
@@ -2316,18 +2250,13 @@ function Guda_SettingsPopup_AddCategory_OnClick()
         isBuiltIn = false,
         group = Guda.Modules.CategoryManager:GetGroupMain(),
     }
-
-    -- Add to database with auto-generated ID
     local success, newId = Guda.Modules.CategoryManager:AddCategory(nil, newDef)
     if success and newId then
-        -- Update display
         Guda_SettingsPopup_CategoriesTab_Update()
-        -- Open editor for the new category
         Guda_CategoryEditor_Open(newId)
     end
 end
 
--- Reset categories to defaults
 function Guda_SettingsPopup_ResetCategories_OnClick()
     if Guda.Modules.CategoryManager then
         Guda.Modules.CategoryManager:ResetToDefaults()
@@ -2337,21 +2266,142 @@ function Guda_SettingsPopup_ResetCategories_OnClick()
     end
 end
 
--- Refresh bag and bank frames after category changes
 function Guda_SettingsPopup_RefreshBagFrames()
-    -- Refresh category list
     Guda_RefreshCategoryList()
-
-    -- Update bag frame if visible
     local bagFrame = getglobal("Guda_BagFrame")
-    if bagFrame and bagFrame:IsShown() then
-        Guda.Modules.BagFrame:Update()
+    if bagFrame and bagFrame:IsShown() then Guda.Modules.BagFrame:Update() end
+    local bankFrame = getglobal("Guda_BankFrame")
+    if bankFrame and bankFrame:IsShown() then Guda.Modules.BankFrame:Update() end
+end
+
+-------------------------------------------
+-- Characters Tab Functions (NEW)
+-------------------------------------------
+
+local CHARACTER_ROW_HEIGHT = 22
+local CHARACTER_VISIBLE_ROWS = 15
+local characterRowFrames = {}
+
+local function GetCharacterRowFrame(index)
+    if characterRowFrames[index] then
+        return characterRowFrames[index]
     end
 
-    -- Update bank frame if visible
-    local bankFrame = getglobal("Guda_BankFrame")
-    if bankFrame and bankFrame:IsShown() then
-        Guda.Modules.BankFrame:Update()
+    local container = getglobal("Guda_SettingsPopup_CharacterListContainer")
+    if not container then return nil end
+
+    local rowName = "Guda_SettingsPopup_CharacterRow" .. index
+    local row = CreateFrame("Frame", rowName, container)
+    row:SetHeight(CHARACTER_ROW_HEIGHT)
+    row:SetWidth(420)
+    row:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -((index - 1) * CHARACTER_ROW_HEIGHT))
+
+    local bg = row:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(row)
+    bg:SetTexture(1, 1, 1, 0)
+    row.bg = bg
+
+    -- Checkbox: Inverted meaning. DB flags "Blacklisted" to HIDE. Checked = Show.[cite: 4]
+    local checkbox = CreateFrame("CheckButton", rowName .. "_Checkbox", row, "UICheckButtonTemplate")
+    checkbox:SetWidth(20)
+    checkbox:SetHeight(20)
+    checkbox:SetPoint("LEFT", row, "LEFT", 0, 0)
+    checkbox:SetScript("OnClick", function()
+        local fullName = this:GetParent().fullName
+        if fullName and Guda.Modules.DB then
+            -- Toggling blacklist flips tracking state[cite: 4]
+            Guda.Modules.DB:ToggleGoldBlacklist(fullName)[cite: 4]
+            Guda_SettingsPopup_CharactersTab_Update()
+            Guda_SettingsPopup_RefreshBagFrames()
+        end
+    end)
+    row.checkbox = checkbox
+
+    local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    nameText:SetPoint("LEFT", checkbox, "RIGHT", 5, 0)
+    nameText:SetWidth(280)
+    nameText:SetJustifyH("LEFT")
+    row.nameText = nameText
+
+    -- Delete Profile Profile Button
+    local deleteBtn = CreateFrame("Button", rowName .. "_DeleteBtn", row, "UIPanelButtonTemplate")
+    deleteBtn:SetWidth(60)
+    deleteBtn:SetHeight(18)
+    deleteBtn:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+    deleteBtn:SetText(Guda_L["Delete"] or "Delete")
+    deleteBtn:SetScript("OnClick", function()
+        local fullName = this:GetParent().fullName
+        if fullName and Guda.Modules.DB then
+            if Guda.Modules.DB:RemoveCharacter(fullName) then[cite: 4]
+                Guda_SettingsPopup_CharactersTab_Update()
+                Guda_SettingsPopup_RefreshBagFrames()
+            end
+        end
+    end)
+    row.deleteBtn = deleteBtn
+
+    row:EnableMouse(true)
+    row:SetScript("OnEnter", function() this.bg:SetTexture(1, 1, 1, 0.1) end)
+    row:SetScript("OnLeave", function() this.bg:SetTexture(1, 1, 1, 0) end)
+
+    characterRowFrames[index] = row
+    return row
+end
+
+function Guda_SettingsPopup_CharactersTab_Update()
+    if not Guda.Modules.DB then return end
+
+    local scrollFrame = getglobal("Guda_SettingsPopup_CharactersScrollFrame")
+    if not scrollFrame then return end
+
+    -- Gathers database structures[cite: 4]
+    local displayList = Guda.Modules.DB:GetAllCharacters(false, false)[cite: 4]
+    local totalEntries = table.getn(displayList)
+
+    FauxScrollFrame_Update(scrollFrame, totalEntries, CHARACTER_VISIBLE_ROWS, CHARACTER_ROW_HEIGHT)
+    local offset = FauxScrollFrame_GetOffset(scrollFrame)
+    local currentFullName = Guda.Modules.DB:GetPlayerFullName()[cite: 4]
+
+    for i = 1, CHARACTER_VISIBLE_ROWS do
+        local row = GetCharacterRowFrame(i)
+        if row then
+            local dataIndex = i + offset
+            if dataIndex <= totalEntries then
+                local entry = displayList[dataIndex]
+                row.fullName = entry.fullName
+
+                -- Color text via engine's localized class parameters
+                local colorStr = "ffffffff"
+                if entry.classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[entry.classToken] then
+                    local c = RAID_CLASS_COLORS[entry.classToken]
+                    colorStr = format("ff%02x%02x%02x", math.floor(c.r*255), math.floor(c.g*255), math.floor(c.b*255))
+                end
+
+                local labelText = format("|c%s%s|r (|cffffffff%d|r) - %s", colorStr, entry.name, entry.level, entry.realm)
+                row.nameText:SetText(labelText)
+
+                -- Checkbox logic: If Blacklisted, then it is hidden[cite: 4]
+                local isExcluded = Guda.Modules.DB:IsGoldBlacklisted(entry.fullName)[cite: 4]
+                row.checkbox:SetChecked(isExcluded and 0 or 1) -- Checked means "Included"
+
+                if isExcluded then
+                    row.nameText:SetAlpha(0.4)
+                else
+                    row.nameText:SetAlpha(1.0)
+                end
+
+                -- Safety check: block deleting your active player profile[cite: 4]
+                if entry.fullName == currentFullName then
+                    row.deleteBtn:Disable()
+                else
+                    row.deleteBtn:Enable()
+                end
+
+                row:Show()
+            else
+                row:Hide()
+            end
+        end
     end
 end
 
@@ -2362,11 +2412,10 @@ end
 local editorCategoryId = nil
 local editorMatchMode = "any"
 local editorGroup = "Main"
-local editorMark = nil  -- current category mark texture path or nil
+local editorMark = nil  
 local editorRules = {}
 local editorRuleFrames = {}
 
--- Available mark icons (texture paths)
 local MARK_ICONS = {
     "Interface\\AddOns\\Guda\\Assets\\equipment",
     "Interface\\AddOns\\Guda\\Assets\\plus",
@@ -2378,7 +2427,6 @@ local MARK_ICONS = {
 local RULE_ROW_HEIGHT = 28
 local MAX_RULES = 22
 
--- Rule type options for dropdown
 local RULE_TYPE_OPTIONS = {
     { id = "itemType", name = "Item Type" },
     { id = "itemSubtype", name = "Item Subtype" },
@@ -2394,7 +2442,6 @@ local RULE_TYPE_OPTIONS = {
     { id = "isProjectile", name = "Projectile" },
 }
 
--- Value options for specific rule types
 local RULE_VALUE_OPTIONS = {
     itemType = { "Armor", "Weapon", "Consumable", "Container", "Trade Goods", "Projectile", "Quiver", "Reagent", "Recipe", "Key", "Miscellaneous", "Quest" },
     quality = { "0 - Poor", "1 - Common", "2 - Uncommon", "3 - Rare", "4 - Epic", "5 - Legendary" },
@@ -2407,11 +2454,9 @@ local RULE_VALUE_OPTIONS = {
     restoreTag = { "eat", "drink", "restore" },
 }
 
--- OnLoad for Category Editor
 function Guda_CategoryEditor_OnLoad(self)
     Guda:ApplyBackdrop(self, "DEFAULT_FRAME")
 
-    -- Set button texts
     local addBtn = getglobal("Guda_CategoryEditor_AddRuleButton")
     if addBtn then addBtn:SetText(Guda_L["+ Add Rule"]) end
 
@@ -2421,17 +2466,14 @@ function Guda_CategoryEditor_OnLoad(self)
     local cancelBtn = getglobal("Guda_CategoryEditor_CancelButton")
     if cancelBtn then cancelBtn:SetText(Guda_L["Cancel"]) end
 
-    -- Create group EditBox if it doesn't exist
     if not getglobal("Guda_CategoryEditor_GroupEditBox") then
         local nameBox = getglobal("Guda_CategoryEditor_NameEditBox")
         if nameBox then
-            -- Label
             local groupLabel = self:CreateFontString("Guda_CategoryEditor_GroupLabel", "OVERLAY", "GameFontNormalSmall")
             groupLabel:SetPoint("LEFT", nameBox, "RIGHT", 14, 0)
             groupLabel:SetText(Guda_L["Group:"])
             groupLabel:SetTextColor(0.7, 0.7, 0.7)
 
-            -- EditBox
             local groupBox = CreateFrame("EditBox", "Guda_CategoryEditor_GroupEditBox", self, "InputBoxTemplate")
             groupBox:SetWidth(100)
             groupBox:SetHeight(22)
@@ -2443,7 +2485,6 @@ function Guda_CategoryEditor_OnLoad(self)
         end
     end
 
-    -- Create mark icon selector row
     if not getglobal("Guda_CategoryEditor_MarkLabel") then
         local MARK_BTN_SIZE = 22
         local MARK_BTN_SPACING = 6
@@ -2453,7 +2494,6 @@ function Guda_CategoryEditor_OnLoad(self)
         markLabel:SetText(Guda_L["Mark:"])
         markLabel:SetTextColor(0.7, 0.7, 0.7)
 
-        -- "None" button (first)
         local noneBtn = CreateFrame("Button", "Guda_CategoryEditor_MarkNone", self)
         noneBtn:SetWidth(MARK_BTN_SIZE)
         noneBtn:SetHeight(MARK_BTN_SIZE)
@@ -2477,7 +2517,6 @@ function Guda_CategoryEditor_OnLoad(self)
 
         self.markButtons = { noneBtn }
 
-        -- Icon buttons
         local prevBtn = noneBtn
         for i = 1, table.getn(MARK_ICONS) do
             local iconPath = MARK_ICONS[i]
@@ -2506,7 +2545,6 @@ function Guda_CategoryEditor_OnLoad(self)
         end
     end
 
-    -- Create radio button labels
     local anyRadio = getglobal("Guda_CategoryEditor_MatchAny")
     if anyRadio then
         local label = anyRadio:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -2522,7 +2560,6 @@ function Guda_CategoryEditor_OnLoad(self)
     end
 end
 
--- Update mark button highlights (gold = selected, gray = unselected)
 function Guda_CategoryEditor_UpdateMarkButtons()
     local editor = getglobal("Guda_CategoryEditor")
     if not editor or not editor.markButtons then return end
@@ -2535,12 +2572,10 @@ function Guda_CategoryEditor_UpdateMarkButtons()
     end
 end
 
--- OnShow for Category Editor
 function Guda_CategoryEditor_OnShow(self)
     Guda_CategoryEditor_UpdateRulesDisplay()
 end
 
--- Open Category Editor for a specific category
 function Guda_CategoryEditor_Open(categoryId)
     if not Guda.Modules.CategoryManager then return end
 
@@ -2552,7 +2587,6 @@ function Guda_CategoryEditor_Open(categoryId)
     editorGroup = categoryDef.group or "Main"
     editorMark = categoryDef.categoryMark or nil
 
-    -- Copy rules
     editorRules = {}
     if categoryDef.rules then
         for i, rule in ipairs(categoryDef.rules) do
@@ -2564,7 +2598,6 @@ function Guda_CategoryEditor_Open(categoryId)
         end
     end
 
-    -- Set title
     local title = getglobal("Guda_CategoryEditor_Title")
     if title then
         if categoryDef.isBuiltIn then
@@ -2574,11 +2607,9 @@ function Guda_CategoryEditor_Open(categoryId)
         end
     end
 
-    -- Set name
     local nameBox = getglobal("Guda_CategoryEditor_NameEditBox")
     if nameBox then
         nameBox:SetText(categoryDef.name or categoryId)
-        -- Disable name editing for built-in categories
         if categoryDef.isBuiltIn then
             nameBox:EnableMouse(false)
             nameBox:EnableKeyboard(false)
@@ -2590,11 +2621,9 @@ function Guda_CategoryEditor_Open(categoryId)
         end
     end
 
-    -- Set group EditBox
     local groupBox = getglobal("Guda_CategoryEditor_GroupEditBox")
     if groupBox then
         groupBox:SetText(editorGroup or "")
-        -- Disable group editing for built-in categories
         if categoryDef.isBuiltIn then
             groupBox:EnableMouse(false)
             groupBox:EnableKeyboard(false)
@@ -2607,22 +2636,13 @@ function Guda_CategoryEditor_Open(categoryId)
         groupBox:ClearFocus()
     end
 
-    -- Set match mode
     Guda_CategoryEditor_SetMatchMode(editorMatchMode)
-
-    -- Update mark button highlights
     Guda_CategoryEditor_UpdateMarkButtons()
 
-    -- Show editor
     local editor = getglobal("Guda_CategoryEditor")
-    if editor then
-        editor:Show()
-    end
+    if editor then editor:Show() end
 end
 
--- (Group is now an EditBox — no dropdown needed)
-
--- Set match mode (radio buttons)
 function Guda_CategoryEditor_SetMatchMode(mode)
     editorMatchMode = mode
 
@@ -2632,13 +2652,11 @@ function Guda_CategoryEditor_SetMatchMode(mode)
     if anyRadio then anyRadio:SetChecked(mode == "any" and 1 or 0) end
     if allRadio then allRadio:SetChecked(mode == "all" and 1 or 0) end
 
-    -- Re-render rule rows so pin buttons reflect new enabled state
     if Guda_CategoryEditor_UpdateRulesDisplay then
         Guda_CategoryEditor_UpdateRulesDisplay()
     end
 end
 
--- Get or create a rule row frame
 local function GetRuleRowFrame(index)
     if editorRuleFrames[index] then
         return editorRuleFrames[index]
@@ -2653,7 +2671,6 @@ local function GetRuleRowFrame(index)
     row:SetWidth(310)
     row:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -((index - 1) * RULE_ROW_HEIGHT))
 
-    -- Required (pin) toggle button
     local reqBtn = CreateFrame("Button", rowName .. "_ReqBtn", row)
     reqBtn:SetWidth(18)
     reqBtn:SetHeight(18)
@@ -2680,19 +2697,15 @@ local function GetRuleRowFrame(index)
     reqBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     row.reqBtn = reqBtn
 
-    -- Rule type dropdown button
     local typeBtn = CreateFrame("Button", rowName .. "_TypeBtn", row, "UIPanelButtonTemplate")
     typeBtn:SetWidth(105)
     typeBtn:SetHeight(22)
     typeBtn:SetPoint("LEFT", reqBtn, "RIGHT", 4, 0)
     typeBtn:SetText(Guda_L["Select Type"])
     typeBtn.ruleIndex = index
-    typeBtn:SetScript("OnClick", function()
-        Guda_CategoryEditor_ShowTypeDropdown(this, this.ruleIndex)
-    end)
+    typeBtn:SetScript("OnClick", function() Guda_CategoryEditor_ShowTypeDropdown(this, this.ruleIndex) end)
     row.typeBtn = typeBtn
 
-    -- Value input (editbox for text, button for dropdowns)
     local valueBox = CreateFrame("EditBox", rowName .. "_ValueBox", row, "InputBoxTemplate")
     valueBox:SetWidth(140)
     valueBox:SetHeight(22)
@@ -2701,28 +2714,22 @@ local function GetRuleRowFrame(index)
     valueBox.ruleIndex = index
     valueBox:SetScript("OnTextChanged", function()
         local idx = this.ruleIndex
-        if editorRules[idx] then
-            editorRules[idx].value = this:GetText()
-        end
+        if editorRules[idx] then editorRules[idx].value = this:GetText() end
     end)
     valueBox:SetScript("OnEscapePressed", function() this:ClearFocus() end)
     valueBox:SetScript("OnEnterPressed", function() this:ClearFocus() end)
     row.valueBox = valueBox
 
-    -- Value dropdown button (for predefined values)
     local valueBtn = CreateFrame("Button", rowName .. "_ValueBtn", row, "UIPanelButtonTemplate")
     valueBtn:SetWidth(140)
     valueBtn:SetHeight(22)
     valueBtn:SetPoint("LEFT", typeBtn, "RIGHT", 5, 0)
     valueBtn:SetText(Guda_L["Select Value"])
     valueBtn.ruleIndex = index
-    valueBtn:SetScript("OnClick", function()
-        Guda_CategoryEditor_ShowValueDropdown(this, this.ruleIndex)
-    end)
+    valueBtn:SetScript("OnClick", function() Guda_CategoryEditor_ShowValueDropdown(this, this.ruleIndex) end)
     valueBtn:Hide()
     row.valueBtn = valueBtn
 
-    -- Item drop zone (visible only for itemID rule type)
     local dropZone = CreateFrame("Button", rowName .. "_DropZone", row)
     dropZone:SetWidth(22)
     dropZone:SetHeight(22)
@@ -2736,7 +2743,6 @@ local function GetRuleRowFrame(index)
     dropZone:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
     dropZone:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
 
-    -- Icon texture (shows item icon after drop)
     local dzIcon = dropZone:CreateTexture(nil, "ARTWORK")
     dzIcon:SetPoint("TOPLEFT", dropZone, "TOPLEFT", 2, -2)
     dzIcon:SetPoint("BOTTOMRIGHT", dropZone, "BOTTOMRIGHT", -2, 2)
@@ -2744,14 +2750,12 @@ local function GetRuleRowFrame(index)
     dzIcon:Hide()
     dropZone.icon = dzIcon
 
-    -- "?" hint when empty
     local dzHint = dropZone:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     dzHint:SetPoint("CENTER", dropZone, "CENTER", 0, 0)
     dzHint:SetText("?")
     dzHint:SetTextColor(0.5, 0.5, 0.5)
     dropZone.hint = dzHint
 
-    -- "(Drop Item)" label
     local dzLabel = dropZone:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     dzLabel:SetPoint("LEFT", dropZone, "RIGHT", 4, 0)
     dzLabel:SetText(Guda_L["(Drop Item)"])
@@ -2763,24 +2767,19 @@ local function GetRuleRowFrame(index)
     dropZone:RegisterForDrag("LeftButton")
     dropZone.ruleIndex = index
 
-    -- Handle item drop via drag
     dropZone:SetScript("OnReceiveDrag", function()
         local idx = this.ruleIndex
         if not editorRules[idx] or editorRules[idx].type ~= "itemID" then return end
         if CursorHasItem and CursorHasItem() then
-            -- In 1.12.1, we get item info from the cursor via tracking
             local info = Guda_GetCursorItemInfo()
             if info and info.itemID then
-                -- Fill the value box with the item ID
                 editorRules[idx].value = tostring(info.itemID)
-                -- Update icon
                 local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(info.link or info.itemID)
                 if texture then
                     this.icon:SetTexture(texture)
                     this.icon:Show()
                     this.hint:Hide()
                 end
-                -- Put item back
                 PickupContainerItem(info.bagID, info.slotID)
                 Guda_ClearCursorItem()
                 Guda_CategoryEditor_UpdateRulesDisplay()
@@ -2788,7 +2787,6 @@ local function GetRuleRowFrame(index)
         end
     end)
 
-    -- Handle click (left = drop item from cursor, right = clear)
     dropZone:SetScript("OnClick", function()
         local idx = this.ruleIndex
         if not editorRules[idx] or editorRules[idx].type ~= "itemID" then return end
@@ -2809,7 +2807,6 @@ local function GetRuleRowFrame(index)
                 end
             end
         elseif arg1 == "RightButton" then
-            -- Clear
             this.icon:SetTexture(nil)
             this.icon:Hide()
             this.hint:Show()
@@ -2818,7 +2815,6 @@ local function GetRuleRowFrame(index)
         end
     end)
 
-    -- Tooltip
     dropZone:SetScript("OnEnter", function()
         GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
         GameTooltip:AddLine("Item ID Slot", 1, 0.82, 0)
@@ -2826,48 +2822,38 @@ local function GetRuleRowFrame(index)
         GameTooltip:AddLine("Right-click to clear", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
-    dropZone:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
+    dropZone:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     dropZone:Hide()
     row.dropZone = dropZone
 
-    -- Delete button
     local deleteBtn = CreateFrame("Button", rowName .. "_DeleteBtn", row, "UIPanelCloseButton")
     deleteBtn:SetWidth(22)
     deleteBtn:SetHeight(22)
     deleteBtn:SetPoint("LEFT", dropZone, "RIGHT", 50, 0)
     deleteBtn.ruleIndex = index
-    deleteBtn:SetScript("OnClick", function()
-        Guda_CategoryEditor_RemoveRule(this.ruleIndex)
-    end)
+    deleteBtn:SetScript("OnClick", function() Guda_CategoryEditor_RemoveRule(this.ruleIndex) end)
     row.deleteBtn = deleteBtn
 
     editorRuleFrames[index] = row
     return row
 end
 
--- Number of visible rule rows in the scroll frame
 local VISIBLE_RULES = 10
 
--- Update rules display with scroll support
 function Guda_CategoryEditor_UpdateRulesDisplay()
     local numRules = table.getn(editorRules)
     local scrollFrame = getglobal("Guda_CategoryEditor_RulesScrollFrame")
 
-    -- Update rules count label
     local rulesLabel = getglobal("Guda_CategoryEditor_RulesLabel")
     if rulesLabel then
         rulesLabel:SetText(format(Guda_L["Rules (%d/%d):"], numRules, MAX_RULES))
     end
 
-    -- Update scroll frame
     if scrollFrame then
         FauxScrollFrame_Update(scrollFrame, numRules, VISIBLE_RULES, RULE_ROW_HEIGHT)
     end
 
-    -- Get scroll offset
     local offset = 0
     if scrollFrame then
         offset = FauxScrollFrame_GetOffset(scrollFrame) or 0
@@ -2903,7 +2889,6 @@ function Guda_CategoryEditor_UpdateRulesDisplay()
                     end
                 end
 
-                -- Set type button text
                 local typeName = "Select Type"
                 for _, opt in ipairs(RULE_TYPE_OPTIONS) do
                     if opt.id == rule.type then
@@ -2913,32 +2898,26 @@ function Guda_CategoryEditor_UpdateRulesDisplay()
                 end
                 row.typeBtn:SetText(typeName)
 
-                -- Show appropriate value input
                 local isItemID = (rule.type == "itemID")
                 if RULE_VALUE_OPTIONS[rule.type] then
-                    -- Use dropdown for predefined values
                     row.valueBox:Hide()
                     row.valueBtn:Show()
                     local displayValue = tostring(rule.value or "Select")
-                    -- Format quality display
                     if (rule.type == "quality" or rule.type == "qualityMin") and type(rule.value) == "number" then
                         local qualNames = { [0]="Poor", [1]="Common", [2]="Uncommon", [3]="Rare", [4]="Epic", [5]="Legendary" }
                         displayValue = rule.value .. " - " .. (qualNames[rule.value] or "")
                     end
                     row.valueBtn:SetText(displayValue)
                 else
-                    -- Use editbox for text input
                     row.valueBtn:Hide()
                     row.valueBox:Show()
                     row.valueBox:SetText(tostring(rule.value or ""))
                 end
 
-                -- Show/hide drop zone for itemID rules
                 if row.dropZone then
                     if isItemID then
                         row.dropZone:Show()
                         row.dropZone.label:Show()
-                        -- Update icon if value is a valid item ID
                         local itemID = tonumber(rule.value)
                         if itemID and itemID > 0 then
                             local _, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemID)
@@ -2954,13 +2933,11 @@ function Guda_CategoryEditor_UpdateRulesDisplay()
                             row.dropZone.icon:Hide()
                             row.dropZone.hint:Show()
                         end
-                        -- Reposition delete button after drop zone label
                         row.deleteBtn:ClearAllPoints()
                         row.deleteBtn:SetPoint("LEFT", row.dropZone, "RIGHT", 50, 0)
                     else
                         row.dropZone:Hide()
                         row.dropZone.label:Hide()
-                        -- Reposition delete button after value input
                         row.deleteBtn:ClearAllPoints()
                         local valueAnchor = row.valueBtn
                         if row.valueBox:IsShown() then valueAnchor = row.valueBox end
@@ -2975,26 +2952,18 @@ function Guda_CategoryEditor_UpdateRulesDisplay()
         end
     end
 
-    -- Enable/disable Add Rule button
     local addBtn = getglobal("Guda_CategoryEditor_AddRuleButton")
     if addBtn then
-        if numRules >= MAX_RULES then
-            addBtn:Disable()
-        else
-            addBtn:Enable()
-        end
+        if numRules >= MAX_RULES then addBtn:Disable() else addBtn:Enable() end
     end
 end
 
--- Add a new rule
 function Guda_CategoryEditor_AddRule()
     if table.getn(editorRules) >= MAX_RULES then return end
-
     table.insert(editorRules, { type = "itemType", value = "Consumable" })
     Guda_CategoryEditor_UpdateRulesDisplay()
 end
 
--- Remove a rule
 function Guda_CategoryEditor_RemoveRule(index)
     if index > 0 and index <= table.getn(editorRules) then
         table.remove(editorRules, index)
@@ -3002,15 +2971,12 @@ function Guda_CategoryEditor_RemoveRule(index)
     end
 end
 
--- Helper to set rule type (called from dropdown)
 function Guda_CategoryEditor_SetRuleType(ruleIndex, typeId)
     if not editorRules[ruleIndex] then return end
 
     editorRules[ruleIndex].type = typeId
-    -- Reset value when type changes
     if RULE_VALUE_OPTIONS[typeId] then
         editorRules[ruleIndex].value = RULE_VALUE_OPTIONS[typeId][1]
-        -- Convert to proper type
         if typeId == "quality" or typeId == "qualityMin" then
             editorRules[ruleIndex].value = 0
         elseif typeId == "isBoE" or typeId == "isQuestItem" or typeId == "isSoulShard" or typeId == "isProjectile" then
@@ -3022,7 +2988,6 @@ function Guda_CategoryEditor_SetRuleType(ruleIndex, typeId)
     Guda_CategoryEditor_UpdateRulesDisplay()
 end
 
--- Helper to set rule value (called from dropdown)
 function Guda_CategoryEditor_SetRuleValue(ruleIndex, val, ruleType)
     if not editorRules[ruleIndex] then return end
 
@@ -3037,22 +3002,15 @@ function Guda_CategoryEditor_SetRuleValue(ruleIndex, val, ruleType)
     Guda_CategoryEditor_UpdateRulesDisplay()
 end
 
--- Show type dropdown menu
 function Guda_CategoryEditor_ShowTypeDropdown(button, ruleIndex)
     local menu = {}
     for i = 1, table.getn(RULE_TYPE_OPTIONS) do
         local opt = RULE_TYPE_OPTIONS[i]
-        table.insert(menu, {
-            text = opt.name,
-            ruleIndex = ruleIndex,
-            typeId = opt.id,
-        })
+        table.insert(menu, { text = opt.name, ruleIndex = ruleIndex, typeId = opt.id })
     end
-
     Guda_ShowSimpleDropdown(button, menu, "type")
 end
 
--- Show value dropdown menu
 function Guda_CategoryEditor_ShowValueDropdown(button, ruleIndex)
     local rule = editorRules[ruleIndex]
     if not rule then return end
@@ -3063,18 +3021,11 @@ function Guda_CategoryEditor_ShowValueDropdown(button, ruleIndex)
     local menu = {}
     for i = 1, table.getn(options) do
         local val = options[i]
-        table.insert(menu, {
-            text = val,
-            ruleIndex = ruleIndex,
-            ruleType = rule.type,
-            value = val,
-        })
+        table.insert(menu, { text = val, ruleIndex = ruleIndex, ruleType = rule.type, value = val })
     end
-
     Guda_ShowSimpleDropdown(button, menu, "value")
 end
 
--- Simple dropdown menu helper
 local dropdownFrame = nil
 function Guda_ShowSimpleDropdown(anchor, menuItems, menuType)
     if not dropdownFrame then
@@ -3091,32 +3042,24 @@ function Guda_ShowSimpleDropdown(anchor, menuItems, menuType)
         dropdownFrame:EnableMouse(true)
         dropdownFrame:Hide()
 
-        dropdownFrame:SetScript("OnLeave", function()
-            -- Hide after a short delay if mouse leaves
-            this.hideTimer = 0.5
-        end)
+        dropdownFrame:SetScript("OnLeave", function() this.hideTimer = 0.5 end)
         dropdownFrame:SetScript("OnUpdate", function()
             if this.hideTimer then
                 this.hideTimer = this.hideTimer - arg1
                 if this.hideTimer <= 0 then
                     this.hideTimer = nil
-                    -- Check if mouse is over any child
-                    if not MouseIsOver(this) then
-                        this:Hide()
-                    end
+                    if not MouseIsOver(this) then this:Hide() end
                 end
             end
         end)
     end
 
-    -- Clear old buttons
     local children = { dropdownFrame:GetChildren() }
     for _, child in ipairs(children) do
         child:Hide()
         child:SetParent(nil)
     end
 
-    -- Create menu buttons
     local btnHeight = 20
     local totalHeight = 10
     for i, item in ipairs(menuItems) do
@@ -3134,7 +3077,6 @@ function Guda_ShowSimpleDropdown(anchor, menuItems, menuType)
         highlight:SetAllPoints(btn)
         highlight:SetTexture(1, 1, 1, 0.2)
 
-        -- Store data on button for vanilla Lua closure compatibility
         btn.menuType = menuType
         btn.ruleIndex = item.ruleIndex
         btn.typeId = item.typeId
@@ -3152,9 +3094,7 @@ function Guda_ShowSimpleDropdown(anchor, menuItems, menuType)
                 Guda_SettingsPopup_ApplyTheme(this.themeId)
             end
         end)
-        btn:SetScript("OnEnter", function()
-            dropdownFrame.hideTimer = nil
-        end)
+        btn:SetScript("OnEnter", function() dropdownFrame.hideTimer = nil end)
 
         totalHeight = totalHeight + btnHeight
     end
@@ -3167,26 +3107,20 @@ function Guda_ShowSimpleDropdown(anchor, menuItems, menuType)
     dropdownFrame.hideTimer = nil
 end
 
--- Save category changes
 function Guda_CategoryEditor_Save()
     if not editorCategoryId or not Guda.Modules.CategoryManager then return end
 
     local categoryDef = Guda.Modules.CategoryManager:GetCategory(editorCategoryId)
     if not categoryDef then return end
 
-    -- Get name (only for custom categories)
     local nameBox = getglobal("Guda_CategoryEditor_NameEditBox")
     if nameBox and not categoryDef.isBuiltIn then
         categoryDef.name = nameBox:GetText()
     end
 
-    -- Set match mode
     categoryDef.matchMode = editorMatchMode
-
-    -- Set category mark
     categoryDef.categoryMark = editorMark
 
-    -- Set rules
     categoryDef.rules = {}
     for _, rule in ipairs(editorRules) do
         if rule.type and rule.type ~= "" then
@@ -3198,43 +3132,32 @@ function Guda_CategoryEditor_Save()
         end
     end
 
-    -- Read group from EditBox
     local groupBox = getglobal("Guda_CategoryEditor_GroupEditBox")
-    local newGroup = "Main" -- default
+    local newGroup = "Main"
     if groupBox then
         local text = groupBox:GetText() or ""
-        -- Trim whitespace
         text = string.gsub(text, "^%s+", "")
         text = string.gsub(text, "%s+$", "")
-        if text ~= "" then
-            newGroup = text
-        end
+        if text ~= "" then newGroup = text end
     end
 
-    -- Set group (handle group change via SetCategoryGroup for proper reordering)
     local oldGroup = categoryDef.group or "Main"
     if newGroup ~= oldGroup then
-        -- Save definition first, then move group
         Guda.Modules.CategoryManager:UpdateCategory(editorCategoryId, categoryDef)
         Guda.Modules.CategoryManager:SetCategoryGroup(editorCategoryId, newGroup)
     else
-        -- Save to database
         Guda.Modules.CategoryManager:UpdateCategory(editorCategoryId, categoryDef)
     end
 
-    -- Refresh displays
     Guda_SettingsPopup_CategoriesTab_Update()
     Guda_SettingsPopup_RefreshBagFrames()
 
-    -- Close editor
     local editor = getglobal("Guda_CategoryEditor")
     if editor then editor:Hide() end
 
     Guda:Print("Category '" .. (categoryDef.name or editorCategoryId) .. "' saved.")
 end
 
--- Initialize
 function SettingsPopup:Initialize()
     Guda:Debug("Settings popup initialized")
 end
-
