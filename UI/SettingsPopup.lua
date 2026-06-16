@@ -148,7 +148,7 @@ end
 
 -- OnShow
 function Guda_SettingsPopup_OnShow(self)
-    -- CRITICAL SAFETY: Prevent opening if database module isn't loaded/ready yet[cite: 4]
+    -- CRITICAL SAFETY: Prevent opening if database module isn't loaded/ready yet
     if not Guda or not Guda.Modules or not Guda.Modules.DB then return end
 
     -- Default to General tab
@@ -333,7 +333,7 @@ function Guda_SettingsPopup_OnShow(self)
     local showCategoryCount = Guda.Modules.DB:GetSetting("showCategoryCount")
     if showCategoryCount == nil then showCategoryCount = true end
     if showCategoryCountCheckbox then
-        showCategoryCountCheckbox:SetChecked(showCategoryCount villages and 1 or 0)
+        showCategoryCountCheckbox:SetChecked(showCategoryCount and 1 or 0)
     end
 
     -- Automation checkboxes
@@ -1172,7 +1172,7 @@ function Guda_SettingsPopup_HoverBaglineCheckbox_OnLoad(self)
     end
 
     -- Inverted: checked = NOT hidden
-    self:SetChecked(hideBagline_ and 0 or 1)
+    self:SetChecked(hideBagline and 0 or 1)
 end
 
 -- Show All Bags Checkbox OnClick (inverted hideBagline)
@@ -1612,7 +1612,7 @@ end
 -- Auto Open Clams Checkbox OnClick
 function Guda_SettingsPopup_AutoOpenClamsCheckbox_OnClick(self)
     local isChecked = self:GetChecked() == 1
-    if Guda navigate and Guda.Modules and Guda.Modules.DB then
+    if Guda and Guda.Modules and Guda.Modules.DB then
         Guda.Modules.DB:SetSetting("autoOpenClams", isChecked)
     end
     if isChecked and Guda.Modules.ClamOpener then
@@ -2376,7 +2376,7 @@ local function GetCharacterRowFrame(index)
     bg:SetTexture(1, 1, 1, 0)
     row.bg = bg
 
-    -- Checkbox: Inverted meaning. DB flags "Blacklisted" to HIDE. Checked = Show.[cite: 4]
+    -- Checkbox: Inverted meaning. DB flags "Blacklisted" to HIDE. Checked = Show.
     local checkbox = CreateFrame("CheckButton", rowName .. "_Checkbox", row, "UICheckButtonTemplate")
     checkbox:SetWidth(20)
     checkbox:SetHeight(20)
@@ -2384,8 +2384,8 @@ local function GetCharacterRowFrame(index)
     checkbox:SetScript("OnClick", function()
         local fullName = this:GetParent().fullName
         if fullName and Guda.Modules.DB then
-            -- Toggling blacklist flips tracking state[cite: 4]
-            Guda.Modules.DB:ToggleGoldBlacklist(fullName)[cite: 4]
+            -- Toggling blacklist flips tracking state
+            Guda.Modules.DB:ToggleGoldBlacklist(fullName)
             Guda_SettingsPopup_CharactersTab_Update()
             Guda_SettingsPopup_RefreshBagFrames()
         end
@@ -2407,7 +2407,7 @@ local function GetCharacterRowFrame(index)
     deleteBtn:SetScript("OnClick", function()
         local fullName = this:GetParent().fullName
         if fullName and Guda.Modules.DB then
-            if Guda.Modules.DB:RemoveCharacter(fullName) then[cite: 4]
+            if Guda.Modules.DB:RemoveCharacter(fullName) then
                 Guda_SettingsPopup_CharactersTab_Update()
                 Guda_SettingsPopup_RefreshBagFrames()
             end
@@ -2429,13 +2429,13 @@ function Guda_SettingsPopup_CharactersTab_Update()
     local scrollFrame = getglobal("Guda_SettingsPopup_CharactersScrollFrame")
     if not scrollFrame then return end
 
-    -- Gathers database structures safely[cite: 4]
-    local displayList = Guda.Modules.DB:GetAllCharacters(false, false)[cite: 4]
+    -- Gathers database structures safely
+    local displayList = Guda.Modules.DB:GetAllCharacters(false, false)
     local totalEntries = displayList and table.getn(displayList) or 0
 
     FauxScrollFrame_Update(scrollFrame, totalEntries, CHARACTER_VISIBLE_ROWS, CHARACTER_ROW_HEIGHT)
     local offset = FauxScrollFrame_GetOffset(scrollFrame)
-    local currentFullName = Guda.Modules.DB:GetPlayerFullName()[cite: 4]
+    local currentFullName = Guda.Modules.DB:GetPlayerFullName()
 
     for i = 1, CHARACTER_VISIBLE_ROWS do
         local row = GetCharacterRowFrame(i)
@@ -2455,8 +2455,8 @@ function Guda_SettingsPopup_CharactersTab_Update()
                 local labelText = format("|c%s%s|r (|cffffffff%d|r) - %s", colorStr, entry.name, entry.level, entry.realm)
                 row.nameText:SetText(labelText)
 
-                -- Checkbox logic: If Blacklisted, then it is hidden[cite: 4]
-                local isExcluded = Guda.Modules.DB:IsGoldBlacklisted(entry.fullName)[cite: 4]
+                -- Checkbox logic: If Blacklisted, then it is hidden
+                local isExcluded = Guda.Modules.DB:IsGoldBlacklisted(entry.fullName)
                 row.checkbox:SetChecked(isExcluded and 0 or 1) -- Checked means "Included"
 
                 if isExcluded then
@@ -2465,7 +2465,7 @@ function Guda_SettingsPopup_CharactersTab_Update()
                     row.nameText:SetAlpha(1.0)
                 end
 
-                -- Safety check: block deleting your active player profile[cite: 4]
+                -- Safety check: block deleting your active player profile
                 if entry.fullName == currentFullName then
                     row.deleteBtn:Disable()
                 else
