@@ -148,6 +148,9 @@ end
 
 -- OnShow
 function Guda_SettingsPopup_OnShow(self)
+    -- CRITICAL SAFETY: Prevent opening if database module isn't loaded/ready yet[cite: 4]
+    if not Guda or not Guda.Modules or not Guda.Modules.DB then return end
+
     -- Default to General tab
     Guda_SettingsPopup_SelectTab("general")
 
@@ -215,7 +218,6 @@ function Guda_SettingsPopup_OnShow(self)
     local markEquipmentSetsCheckbox = getglobal("Guda_SettingsPopup_MarkEquipmentSetsCheckbox")
     local bagViewDropdown = getglobal("Guda_SettingsPopup_BagViewDropdown")
     local bankViewDropdown = getglobal("Guda_SettingsPopup_BankViewDropdown")
-    local themeDropdown = getglobal("Guda_SettingsPopup_ThemeDropdown")
 
     local showTooltipCounts = Guda.Modules.DB:GetSetting("showTooltipCounts")
     if showTooltipCounts == nil then
@@ -331,7 +333,7 @@ function Guda_SettingsPopup_OnShow(self)
     local showCategoryCount = Guda.Modules.DB:GetSetting("showCategoryCount")
     if showCategoryCount == nil then showCategoryCount = true end
     if showCategoryCountCheckbox then
-        showCategoryCountCheckbox:SetChecked(showCategoryCount and 1 or 0)
+        showCategoryCountCheckbox:SetChecked(showCategoryCount villages and 1 or 0)
     end
 
     -- Automation checkboxes
@@ -378,7 +380,7 @@ function Guda_SettingsPopup_OnShow(self)
     local themeDropdown = getglobal("Guda_SettingsPopup_ThemeDropdown")
     if themeDropdown then
         local currentTheme = Guda.Modules.DB:GetSetting("theme") or "guda"
-        local names = { guda = "Guda", blizzard = "Blizzard" }
+        local names = { guda = "Guda", blizzard = "Blizzard", pfui = "pfUI" }
         UIDropDownMenu_SetSelectedValue(themeDropdown, currentTheme)
         UIDropDownMenu_SetText(names[currentTheme] or currentTheme, themeDropdown)
     end
@@ -437,7 +439,10 @@ function Guda_SettingsPopup_BagColumnsSlider_OnLoad(self)
     self:SetMinMaxValues(5, 20)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("bagColumns") or 10
+    local currentValue = 10
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("bagColumns") or 10
+    end
     self:SetValue(currentValue)
 end
 
@@ -449,7 +454,9 @@ function Guda_SettingsPopup_BagColumnsSlider_OnValueChanged(self)
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Bag columns: %d"], value))
     
     -- Save setting
-    Guda.Modules.DB:SetSetting("bagColumns", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("bagColumns", value)
+    end
     
     -- Refresh bag frame if it's open
     local bagFrame = getglobal("Guda_BagFrame")
@@ -475,7 +482,10 @@ function Guda_SettingsPopup_BankColumnsSlider_OnLoad(self)
     self:SetMinMaxValues(5, 20)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("bankColumns") or 10
+    local currentValue = 10
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("bankColumns") or 10
+    end
     self:SetValue(currentValue)
 end
 
@@ -487,7 +497,9 @@ function Guda_SettingsPopup_BankColumnsSlider_OnValueChanged(self)
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Bank columns: %d"], value))
     
     -- Save setting
-    Guda.Modules.DB:SetSetting("bankColumns", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("bankColumns", value)
+    end
     
     -- Refresh bank frame if it's open
     local bankFrame = getglobal("Guda_BankFrame")
@@ -513,7 +525,10 @@ function Guda_SettingsPopup_BgTransparencySlider_OnLoad(self)
     self:SetMinMaxValues(0.0, 1.0)
     self:SetValueStep(0.05)
 
-    local currentValue = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
+    local currentValue = 0.15
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
+    end
     self:SetValue(currentValue)
 end
 
@@ -527,7 +542,9 @@ function Guda_SettingsPopup_BgTransparencySlider_OnValueChanged(self)
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Background Transparency: %d%%"], math.floor(value * 100)))
 
     -- Save setting
-    Guda.Modules.DB:SetSetting("bgTransparency", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("bgTransparency", value)
+    end
 
     -- Apply transparency
     Guda_ApplyBackgroundTransparency()
@@ -542,7 +559,10 @@ function Guda_ApplyBackgroundTransparency()
     end
 
     -- Fallback: original behavior
-    local transparency = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
+    local transparency = 0.15
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        transparency = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
+    end
     local alpha = 1.0 - transparency
 
     local frames = { "Guda_BagFrame", "Guda_BankFrame", "Guda_MailboxFrame", "Guda_SettingsPopup" }
@@ -572,7 +592,10 @@ function Guda_SettingsPopup_IconSizeSlider_OnLoad(self)
     self:SetMinMaxValues(22, 64)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("iconSize") or 37
+    local currentValue = 37
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("iconSize") or 37
+    end
     self:SetValue(currentValue)
 end
 
@@ -582,7 +605,9 @@ function Guda_SettingsPopup_IconSizeSlider_OnValueChanged(self)
 
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Icon size: %dpx"], value))
 
-    Guda.Modules.DB:SetSetting("iconSize", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("iconSize", value)
+    end
 
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame and bagFrame:IsShown() then
@@ -612,7 +637,10 @@ function Guda_SettingsPopup_IconFontSizeSlider_OnLoad(self)
     self:SetMinMaxValues(8, 20)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("iconFontSize") or 12
+    local currentValue = 12
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("iconFontSize") or 12
+    end
     self:SetValue(currentValue)
 end
 
@@ -622,7 +650,9 @@ function Guda_SettingsPopup_IconFontSizeSlider_OnValueChanged(self)
 
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Icon font size: %dpx"], value))
 
-    Guda.Modules.DB:SetSetting("iconFontSize", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("iconFontSize", value)
+    end
 
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame and bagFrame:IsShown() then
@@ -652,18 +682,22 @@ function Guda_SettingsPopup_IconSpacingSlider_OnLoad(self)
     self:SetMinMaxValues(0, 20)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("iconSpacing") or 4
+    local currentValue = 4
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("iconSpacing") or 4
+    end
     self:SetValue(currentValue)
 end
 
 -- Icon Spacing Slider OnValueChanged
 function Guda_SettingsPopup_IconSpacingSlider_OnValueChanged(self)
     local value = math.floor(self:GetValue() + 0.5)
-    local displayValue = value >= 0 and value .. "px" or value .. "px"
-    getglobal(self:GetName().."Text"):SetText(format(Guda_L["Icon spacing: %s"], tostring(displayValue)))
+    getglobal(self:GetName().."Text"):SetText(format(Guda_L["Icon spacing: %dpx"], value))
 
     -- Save setting
-    Guda.Modules.DB:SetSetting("iconSpacing", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("iconSpacing", value)
+    end
 
     -- Update bag frame
     local bagFrame = getglobal("Guda_BagFrame")
@@ -698,7 +732,10 @@ function Guda_SettingsPopup_QuestBarSizeSlider_OnLoad(self)
     self:SetMinMaxValues(22, 64)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("questBarSize") or 36
+    local currentValue = 36
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("questBarSize") or 36
+    end
     self:SetValue(currentValue)
 end
 
@@ -708,7 +745,9 @@ function Guda_SettingsPopup_QuestBarSizeSlider_OnValueChanged(self)
 
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Quest bar size: %dpx"], value))
 
-    Guda.Modules.DB:SetSetting("questBarSize", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("questBarSize", value)
+    end
 
     -- Update quest item bar
     if Guda.Modules.QuestItemBar and Guda.Modules.QuestItemBar.Update then
@@ -733,7 +772,10 @@ function Guda_SettingsPopup_TrackedBarSizeSlider_OnLoad(self)
     self:SetMinMaxValues(22, 64)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("trackedBarSize") or 36
+    local currentValue = 36
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("trackedBarSize") or 36
+    end
     self:SetValue(currentValue)
 end
 
@@ -743,7 +785,9 @@ function Guda_SettingsPopup_TrackedBarSizeSlider_OnValueChanged(self)
 
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Tracked bar size: %dpx"], value))
 
-    Guda.Modules.DB:SetSetting("trackedBarSize", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("trackedBarSize", value)
+    end
 
     -- Update tracked item bar
     if Guda.Modules.TrackedItemBar and Guda.Modules.TrackedItemBar.Update then
@@ -1128,7 +1172,7 @@ function Guda_SettingsPopup_HoverBaglineCheckbox_OnLoad(self)
     end
 
     -- Inverted: checked = NOT hidden
-    self:SetChecked(hideBagline and 0 or 1)
+    self:SetChecked(hideBagline_ and 0 or 1)
 end
 
 -- Show All Bags Checkbox OnClick (inverted hideBagline)
@@ -1262,7 +1306,10 @@ function Guda_SettingsPopup_JunkOpacitySlider_OnLoad(self)
     self:SetMinMaxValues(0.1, 1.0)
     self:SetValueStep(0.05)
 
-    local currentValue = Guda.Modules.DB:GetSetting("junkOpacity") or 0.6
+    local currentValue = 0.6
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentValue = Guda.Modules.DB:GetSetting("junkOpacity") or 0.6
+    end
     self:SetValue(currentValue)
 end
 
@@ -1276,7 +1323,9 @@ function Guda_SettingsPopup_JunkOpacitySlider_OnValueChanged(self)
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Junk item opacity: %d%%"], math.floor(value * 100)))
 
     -- Save setting
-    Guda.Modules.DB:SetSetting("junkOpacity", value)
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("junkOpacity", value)
+    end
 
     -- Update bag frame if visible
     local bagFrame = getglobal("Guda_BagFrame")
@@ -1526,7 +1575,10 @@ end
 -- Auto Loot Checkbox OnClick
 function Guda_SettingsPopup_AutoLootCheckbox_OnClick(self)
     if self._gudaSoftDisabled then
-        local enabled = Guda.Modules.DB:GetSetting("autoLoot") and true or false
+        local enabled = false
+        if Guda and Guda.Modules and Guda.Modules.DB then
+            enabled = Guda.Modules.DB:GetSetting("autoLoot") and true or false
+        end
         self:SetChecked(enabled and 1 or 0)
         return
     end
@@ -1560,7 +1612,7 @@ end
 -- Auto Open Clams Checkbox OnClick
 function Guda_SettingsPopup_AutoOpenClamsCheckbox_OnClick(self)
     local isChecked = self:GetChecked() == 1
-    if Guda and Guda.Modules and Guda.Modules.DB then
+    if Guda navigate and Guda.Modules and Guda.Modules.DB then
         Guda.Modules.DB:SetSetting("autoOpenClams", isChecked)
     end
     if isChecked and Guda.Modules.ClamOpener then
@@ -1755,7 +1807,10 @@ function Guda_SettingsPopup_UsePfUITransparencyCheckbox_OnClick(self)
 end
 
 local function Guda_ThemeDropdown_Initialize()
-    local currentTheme = Guda.Modules.DB:GetSetting("theme") or "guda"
+    local currentTheme = "guda"
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentTheme = Guda.Modules.DB:GetSetting("theme") or "guda"
+    end
     for _, option in ipairs(themeOptions) do
         local info = {}
         info.text = option.text
@@ -1773,7 +1828,10 @@ end
 function Guda_SettingsPopup_ThemeDropdown_OnLoad(self)
     UIDropDownMenu_Initialize(self, Guda_ThemeDropdown_Initialize)
     UIDropDownMenu_SetWidth(130, self)
-    local currentTheme = Guda.Modules.DB:GetSetting("theme") or "guda"
+    local currentTheme = "guda"
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        currentTheme = Guda.Modules.DB:GetSetting("theme") or "guda"
+    end
     local names = { guda = "Guda", blizzard = "Blizzard", pfui = "pfUI" }
     UIDropDownMenu_SetSelectedValue(self, currentTheme)
     UIDropDownMenu_SetText(names[currentTheme] or currentTheme, self)
@@ -1786,6 +1844,7 @@ end
 
 -- Apply selected theme
 function Guda_SettingsPopup_ApplyTheme(themeId)
+    if not Guda or not Guda.Modules or not Guda.Modules.DB then return end
     local DB = Guda.Modules.DB
     local oldTheme = DB:GetSetting("theme") or "guda"
 
@@ -1861,7 +1920,10 @@ local bagViewOptions = {
 }
 
 local function Guda_BagViewDropdown_Initialize()
-    local current = Guda.Modules.DB:GetSetting("bagViewType") or "single"
+    local current = "single"
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        current = Guda.Modules.DB:GetSetting("bagViewType") or "single"
+    end
     for _, option in ipairs(bagViewOptions) do
         local info = {}
         info.text = option.text
@@ -1870,7 +1932,9 @@ local function Guda_BagViewDropdown_Initialize()
             local val = this.value
             UIDropDownMenu_SetSelectedValue(getglobal("Guda_SettingsPopup_BagViewDropdown"), val)
             UIDropDownMenu_SetText(val == "single" and "Single" or "Category", getglobal("Guda_SettingsPopup_BagViewDropdown"))
-            Guda.Modules.DB:SetSetting("bagViewType", val)
+            if Guda and Guda.Modules and Guda.Modules.DB then
+                Guda.Modules.DB:SetSetting("bagViewType", val)
+            end
             if Guda_ReleaseAllButtons then Guda_ReleaseAllButtons() end
             if Guda_BagFrame:IsShown() then Guda.Modules.BagFrame:Update() end
             if Guda_BankFrame and Guda_BankFrame:IsShown() then Guda.Modules.BankFrame:Update() end
@@ -1883,7 +1947,10 @@ end
 function Guda_SettingsPopup_BagViewDropdown_OnLoad(self)
     UIDropDownMenu_Initialize(self, Guda_BagViewDropdown_Initialize)
     UIDropDownMenu_SetWidth(130, self)
-    local current = Guda.Modules.DB:GetSetting("bagViewType") or "single"
+    local current = "single"
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        current = Guda.Modules.DB:GetSetting("bagViewType") or "single"
+    end
     UIDropDownMenu_SetSelectedValue(self, current)
     UIDropDownMenu_SetText(current == "single" and "Single" or "Category", self)
 
@@ -1900,7 +1967,10 @@ local bankViewOptions = {
 }
 
 local function Guda_BankViewDropdown_Initialize()
-    local current = Guda.Modules.DB:GetSetting("bankViewType") or "single"
+    local current = "single"
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        current = Guda.Modules.DB:GetSetting("bankViewType") or "single"
+    end
     for _, option in ipairs(bankViewOptions) do
         local info = {}
         info.text = option.text
@@ -1909,7 +1979,9 @@ local function Guda_BankViewDropdown_Initialize()
             local val = this.value
             UIDropDownMenu_SetSelectedValue(getglobal("Guda_SettingsPopup_BankViewDropdown"), val)
             UIDropDownMenu_SetText(val == "single" and "Single" or "Category", getglobal("Guda_SettingsPopup_BankViewDropdown"))
-            Guda.Modules.DB:SetSetting("bankViewType", val)
+            if Guda and Guda.Modules and Guda.Modules.DB then
+                Guda.Modules.DB:SetSetting("bankViewType", val)
+            end
             if Guda_ReleaseAllButtons then Guda_ReleaseAllButtons() end
             if Guda_BankFrame and Guda_BankFrame:IsShown() then Guda.Modules.BankFrame:Update() end
             if Guda_BagFrame:IsShown() then Guda.Modules.BagFrame:Update() end
@@ -1922,7 +1994,10 @@ end
 function Guda_SettingsPopup_BankViewDropdown_OnLoad(self)
     UIDropDownMenu_Initialize(self, Guda_BankViewDropdown_Initialize)
     UIDropDownMenu_SetWidth(130, self)
-    local current = Guda.Modules.DB:GetSetting("bankViewType") or "single"
+    local current = "single"
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        current = Guda.Modules.DB:GetSetting("bankViewType") or "single"
+    end
     UIDropDownMenu_SetSelectedValue(self, current)
     UIDropDownMenu_SetText(current == "single" and "Single" or "Category", self)
 
@@ -2089,7 +2164,7 @@ local function GetCategoryRowFrame(index)
     mergeCheckbox:SetPoint("RIGHT", row, "RIGHT", -5, 0)
     mergeCheckbox:SetScript("OnClick", function()
         local groupName = this:GetParent().groupName
-        if groupName then
+        if groupName and Guda and Guda.Modules and Guda.Modules.DB then
             local mergedGroups = Guda.Modules.DB:GetSetting("mergedGroups") or {}
             if this:GetChecked() == 1 then
                 mergedGroups[groupName] = true
@@ -2116,7 +2191,7 @@ local function GetCategoryRowFrame(index)
 end
 
 local function BuildCategoryDisplayList()
-    if not Guda.Modules.CategoryManager then return {}, 0 end
+    if not Guda or not Guda.Modules or not Guda.Modules.CategoryManager then return {}, 0 end
 
     local categoryOrder = Guda.Modules.CategoryManager:GetCategoryOrder()
     local displayList = {}
@@ -2138,7 +2213,7 @@ local function BuildCategoryDisplayList()
 end
 
 function Guda_SettingsPopup_CategoriesTab_Update()
-    if not Guda.Modules.CategoryManager then return end
+    if not Guda.Modules.CategoryManager or not Guda.Modules.DB then return end
 
     local scrollFrame = getglobal("Guda_SettingsPopup_CategoriesScrollFrame")
     if not scrollFrame then return end
@@ -2267,7 +2342,7 @@ function Guda_SettingsPopup_ResetCategories_OnClick()
 end
 
 function Guda_SettingsPopup_RefreshBagFrames()
-    Guda_RefreshCategoryList()
+    if Guda_RefreshCategoryList then Guda_RefreshCategoryList() end
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame and bagFrame:IsShown() then Guda.Modules.BagFrame:Update() end
     local bankFrame = getglobal("Guda_BankFrame")
@@ -2323,7 +2398,7 @@ local function GetCharacterRowFrame(index)
     nameText:SetJustifyH("LEFT")
     row.nameText = nameText
 
-    -- Delete Profile Profile Button
+    -- Delete Profile Button
     local deleteBtn = CreateFrame("Button", rowName .. "_DeleteBtn", row, "UIPanelButtonTemplate")
     deleteBtn:SetWidth(60)
     deleteBtn:SetHeight(18)
@@ -2349,14 +2424,14 @@ local function GetCharacterRowFrame(index)
 end
 
 function Guda_SettingsPopup_CharactersTab_Update()
-    if not Guda.Modules.DB then return end
+    if not Guda or not Guda.Modules or not Guda.Modules.DB then return end
 
     local scrollFrame = getglobal("Guda_SettingsPopup_CharactersScrollFrame")
     if not scrollFrame then return end
 
-    -- Gathers database structures[cite: 4]
+    -- Gathers database structures safely[cite: 4]
     local displayList = Guda.Modules.DB:GetAllCharacters(false, false)[cite: 4]
-    local totalEntries = table.getn(displayList)
+    local totalEntries = displayList and table.getn(displayList) or 0
 
     FauxScrollFrame_Update(scrollFrame, totalEntries, CHARACTER_VISIBLE_ROWS, CHARACTER_ROW_HEIGHT)
     local offset = FauxScrollFrame_GetOffset(scrollFrame)
