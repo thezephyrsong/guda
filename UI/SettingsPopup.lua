@@ -686,11 +686,13 @@ function Guda_SettingsPopup_IconSpacingSlider_OnLoad(self)
     if Guda and Guda.Modules and Guda.Modules.DB then
         currentValue = Guda.Modules.DB:GetSetting("iconSpacing") or 4
     end
+    self.isInitialized = true
     self:SetValue(currentValue)
 end
 
 -- Icon Spacing Slider OnValueChanged
 function Guda_SettingsPopup_IconSpacingSlider_OnValueChanged(self)
+    if not self.isInitialized then return end
     local value = math.floor(self:GetValue() + 0.5)
     getglobal(self:GetName().."Text"):SetText(format(Guda_L["Icon spacing: %dpx"], value))
 
